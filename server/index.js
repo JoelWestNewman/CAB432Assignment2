@@ -31,7 +31,7 @@ app.get("/api", (req, res) => {
 
 
 //Search for image
-//https://farm{farm-id}.staticflickr.com/{server-id}/{id}_{secret}_{mstzb}.jpg
+//TODO parse resposne in form https://farm{farm-id}.staticflickr.com/{server-id}/{id}_{secret}_{mstzb}.jpg and process with ai.
 app.get('/api/search', (req, res) => {
  const query = (req.query.query).trim();
  // Construct the flickr URL and key
