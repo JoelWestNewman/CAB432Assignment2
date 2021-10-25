@@ -35,20 +35,29 @@ export function ImageSearchDetector(props) {
     color: "black",
   };
 
-  //load the model
   async function loadModel() {
     setModelLoading(true);
     const model = await cocoSsd.load();
+
+    //const api_url = "/api/startModel";
+
+    //fetch(api_url).then((res) => setModel(res));
+
     setModel(model);
     console.log("set loaded Model");
     setModelLoading(false);
   }
 
-  //get the image and run it through the prediction model
   const getPredictions = async () => {
     const imageComp = document.getElementById("imageDisplayed");
+
+    // const api_url = "/getPrediction";
+    // fetch(api_url, {
+    //   method: "POST",
+    //   body: imageComp,
+    // }).then((res) => console.log(res));
+
     const predictions = await model.detect(imageComp);
-    console.log(predictions);
     setPredictions(predictions);
   };
 
@@ -61,9 +70,6 @@ export function ImageSearchDetector(props) {
     const translateLeft =
       props.props.bbox[0] + window.innerWidth / 2 - imageRef.current.width / 2;
     const translateDown = props.props.bbox[1] + position.y;
-
-    console.log(translateLeft);
-
     //style the box using the coordinates
     const styles = {
       rectangle: {
@@ -96,16 +102,17 @@ export function ImageSearchDetector(props) {
       images[0].secret +
       "_w.jpg";
     setImageUrl(url);
+    setPredictions("");
 
     //https://live.staticflickr.com/{server-id}/{id}_{secret}_{size-suffix}.jpg
   };
 
   const getImages = async () => {
-    const api_url = "/image?query=" + searchInput;
+    const api_url = "/api/search?query=" + searchInput;
 
     fetch(api_url)
       .then((res) => res.json())
-      .then((res) => setImages(res));
+      .then((res) => setImages(res.photos.photo));
   };
 
   useEffect(() => {
