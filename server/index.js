@@ -9,9 +9,15 @@ const AWS = require("aws-sdk");
 // Cloud Services Set-up
 // Create unique bucket name
 const bucketName = "costaandoldmatebucket";
-
+const request = require('request').defaults({ encoding: null });
 const cocoSsd = require("@tensorflow-models/coco-ssd");
 const tensorflow = require("@tensorflow/tfjs-node");
+const mobilenet = require('@tensorflow-models/mobilenet');
+const supertest = require("supertest");
+const fs = require('fs');
+const jpeg = require('jpeg-js');
+
+const NUMBER_OF_CHANNELS = 3
 
 // Create a promise on S3 service object
 const bucketPromise = new AWS.S3({ apiVersion: "2006-03-01" })
@@ -32,15 +38,69 @@ redisClient.on("error", (err) => {
 
 app.use(responseTime());
 
-// app.post("/getPrediction", async (req, res) => {
-//   tensorflow.ready().then(async () => {
-//     const model = await cocoSsd.load();
-//     const predictions = await model.detect(req.body);
-//     const finishedpredictions = await predictions.json();
-//     console.log(finishedpredictions);
-//     res.json(finishedpredictions);
-//   });
-// });
+function readImage(path){
+  const buf = fs.readFileSync(path)
+  const pixels = jpeg.decode(buf, true)
+  return pixels
+}
+
+function imageByteArray(image, numChannels){
+  const pixels = image.data
+  const numPixels = image.width * image.height;
+  const values = new Int32Array(numPixels * numChannels);s
+  for (let i = 0; i < numPixels; i++) {
+    for (let channel = 0; channel < numChannels; ++channel) {
+      values[i * numChannels + channel] = pixels[i * 4 + channel];
+    }
+  }
+
+  return values
+}
+
+function imageToInput (image, numChannels){
+  const values = imageByteArray(image, numChannels)
+  const outShape = [image.height, image.width, numChannels];
+  const input = tensorflow.tensor3d(values, outShape, 'int32');
+
+  return input
+}
+
+
+
+async function classify(path){
+    const image = readImage(path)
+    const input = imageToInput(image, NUMBER_OF_CHANNELS)
+
+    const  mn_model = await mobilenet.load();
+    const predictions = await mn_model.classify(input)
+    console.log(predictions)
+    return predictions
+}
+
+app.get("/predict", async function(req, res) {
+ const query = req.query.query.trim();
+ const api = supertest(req.app);
+ const data = await api.get("/api/search?query="+query);
+ var photo = JSON.parse(data.text).photos.photo[0]
+ var url = "https://live.staticflickr.com/" +
+                 photo.server +
+                 "/" +
+                 photo.id +
+                 "_" +
+                 photo.secret +
+                 "_w.jpg";
+
+request.get(url, async function (error, response, body) {
+    if (!error && response.statusCode == 200) {
+        var base64Data = Buffer.from(body).toString('base64');
+        const path = '/tmp/'+Date.now()
+        fs.writeFileSync(path, base64Data,  {encoding: 'base64'});
+        const result = await classify(path)
+        res.json({result: result})
+    }
+});
+
+});
 
 app.get("/api", (req, res) => {
   res.json({ message: "Hello from server!" });
@@ -52,7 +112,7 @@ app.get("/api/search", (req, res) => {
   const query = req.query.query.trim();
   // Construct the flickr URL and key
   const APIKEY = "ffd6e3622d2137fe60a38874ba4a2464";
-  const searchUrl = `https://api.flickr.com/services/rest/?&method=flickr.photos.search&api_key=ffd6e3622d2137fe60a38874ba4a2464&tags=${query}&per-page=50&format=json&media=photos&nojsoncallback=1`;
+  const searchUrl = `https://api.flickr.com/services/rest/?&method=flickr.photos.search&api_key=ffd6e3622d2137fe60a38874ba4a2464&tags=${query}&per-page=5&format=json&media=photos&nojsoncallback=1`;
   const redisKey = `flickr:${query}`;
   const s3Key = `flickr-${query}`;
   const params = { Bucket: bucketName, Key: s3Key };
@@ -127,7 +187,7 @@ app.get("/api/search", (req, res) => {
 app.get("/api/store", (req, res) => {
   const key = req.query.key.trim();
   // Construct the flickr URL and S3 key
-  const searchUrl = `https://api.flickr.com/services/rest/?&method=flickr.photos.search&api_key=ffd6e3622d2137fe60a38874ba4a2464&tags=${key}&per-page=50&format=json&media=photos&nojsoncallback=1`;
+  const searchUrl = `https://api.flickr.com/services/rest/?&method=flickr.photos.search&api_key=ffd6e3622d2137fe60a38874ba4a2464&tags=${key}&per-page=1&format=json&media=photos&nojsoncallback=1`;
   const s3Key = `flickr-${key}`;
 
   // Check S3
