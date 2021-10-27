@@ -10,7 +10,8 @@ import { ImageSearchDetector } from "./components/imageSearchDetector";
 function App() {
   return (
     <div className="App">
-      <h1> machine learning application</h1>
+      <h1>Image Detector</h1>
+      <img src="JustLogo.png" />
       <ImageSearchDetector />
     </div>
   );

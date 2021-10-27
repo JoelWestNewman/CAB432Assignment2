@@ -17,6 +17,7 @@ export function ImageSearchDetector(props) {
   const [predictions, setPredictions] = useState();
   const [modelLoading, setModelLoading] = useState(false);
   const [mobilePredictions, setMobilePredictions] = useState();
+  const [clientSidePredictions, setClientSidePredictions] = useState(true);
 
   const imageRef = useRef();
 
@@ -27,6 +28,7 @@ export function ImageSearchDetector(props) {
     color: "black",
     width: "60%",
     margin: "auto",
+    borderRadius: "10px",
   };
 
   const urlStyle = {
@@ -34,6 +36,7 @@ export function ImageSearchDetector(props) {
     border: "1px solid darkgrey",
     padding: "15px",
     color: "black",
+    borderRadius: "10px",
   };
 
   async function loadModel() {
@@ -128,6 +131,27 @@ export function ImageSearchDetector(props) {
         <h3>Loading the machine learning model...</h3>
       ) : (
         <div>
+          {clientSidePredictions ? (
+            <div>
+              {" "}
+              <Button
+                variant="contained"
+                onClick={(event) => setClientSidePredictions(false)}
+              >
+                Use Server-Side Predictions
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <Button
+                variant="contained"
+                onClick={(event) => setClientSidePredictions(true)}
+              >
+                Use Client-Side Predictions
+              </Button>{" "}
+            </div>
+          )}
+          <br />
           <TextField
             id="outlined-basic"
             label="Search For An Image"
@@ -152,6 +176,7 @@ export function ImageSearchDetector(props) {
               <br />
               {images ? (
                 <div style={urlStyle}>
+                  <h1> Image Data Found: </h1>
                   id: {images[0].id}
                   <br />
                   owner: {images[0].owner}
@@ -166,7 +191,7 @@ export function ImageSearchDetector(props) {
                   <br />
                   <Button variant="contained" onClick={createUrl}>
                     {" "}
-                    Create Url
+                    Generate Image
                   </Button>
                   <h1> </h1>{" "}
                 </div>
@@ -194,32 +219,37 @@ export function ImageSearchDetector(props) {
                     {predictions ? (
                       <div>
                         <h1> Predictions: </h1>
-
-                        {predictions.map((data, key) => (
-                          <div className={key}>
-                            <h2> class: {data.class} </h2>
-                            <h3> score: {data.score}</h3>
-                            <h3>
-                              {" "}
-                              location: {data.bbox[0]}, {data.bbox[1]},{" "}
-                              {data.bbox[2]}, {data.bbox[3]}
-                            </h3>
-                            <TargetBox props={data} />
-                          </div>
-                        ))}
-                        <h1>mobilePredictions </h1>
-                        {mobilePredictions ? (
+                        {clientSidePredictions ? (
                           <div>
-                            {mobilePredictions.map((data, key) => (
+                            {predictions.map((data, key) => (
                               <div className={key}>
-                                <h2> class: {data.className} </h2>
-                                <h3> score: {data.probability}</h3>
+                                <h2> class: {data.class} </h2>
+                                <h3> score: {data.score}</h3>
+                                <h3>
+                                  {" "}
+                                  location: {data.bbox[0]}, {data.bbox[1]},{" "}
+                                  {data.bbox[2]}, {data.bbox[3]}
+                                </h3>
+                                <TargetBox props={data} />
                               </div>
                             ))}
                           </div>
                         ) : (
                           <div>
-                            <h3>loading more predictions from server...</h3>
+                            {mobilePredictions ? (
+                              <div>
+                                {mobilePredictions.map((data, key) => (
+                                  <div className={key}>
+                                    <h2> class: {data.className} </h2>
+                                    <h3> score: {data.probability}</h3>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div>
+                                <h3>loading more predictions from server...</h3>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
