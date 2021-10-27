@@ -1,4 +1,3 @@
-
 const PORT = process.env.PORT || 3001;
 const express = require("express");
 const responseTime = require("response-time");
@@ -10,15 +9,15 @@ const AWS = require("aws-sdk");
 // Cloud Services Set-up
 // Create unique bucket name
 const bucketName = "costaandoldmatebucket";
-const request = require('request').defaults({ encoding: null });
+const request = require("request").defaults({ encoding: null });
 const cocoSsd = require("@tensorflow-models/coco-ssd");
 const tensorflow = require("@tensorflow/tfjs-node");
-const mobilenet = require('@tensorflow-models/mobilenet');
+const mobilenet = require("@tensorflow-models/mobilenet");
 const supertest = require("supertest");
-const fs = require('fs');
-const jpeg = require('jpeg-js');
+const fs = require("fs");
+const jpeg = require("jpeg-js");
 
-const NUMBER_OF_CHANNELS = 3
+const NUMBER_OF_CHANNELS = 3;
 
 // Create a promise on S3 service object
 const bucketPromise = new AWS.S3({ apiVersion: "2006-03-01" })
@@ -39,14 +38,14 @@ redisClient.on("error", (err) => {
 
 app.use(responseTime());
 
-function readImage(path){
-  const buf = fs.readFileSync(path)
-  const pixels = jpeg.decode(buf, true)
-  return pixels
+function readImage(path) {
+  const buf = fs.readFileSync(path);
+  const pixels = jpeg.decode(buf, true);
+  return pixels;
 }
 
-function imageByteArray(image, numChannels){
-  const pixels = image.data
+function imageByteArray(image, numChannels) {
+  const pixels = image.data;
   const numPixels = image.width * image.height;
   const values = new Int32Array(numPixels * numChannels);
   for (let i = 0; i < numPixels; i++) {
@@ -55,52 +54,50 @@ function imageByteArray(image, numChannels){
     }
   }
 
-  return values
+  return values;
 }
 
-function imageToInput (image, numChannels){
-  const values = imageByteArray(image, numChannels)
+function imageToInput(image, numChannels) {
+  const values = imageByteArray(image, numChannels);
   const outShape = [image.height, image.width, numChannels];
-  const input = tensorflow.tensor3d(values, outShape, 'int32');
+  const input = tensorflow.tensor3d(values, outShape, "int32");
 
-  return input
+  return input;
 }
 
+async function classify(path) {
+  const image = readImage(path);
+  const input = imageToInput(image, NUMBER_OF_CHANNELS);
 
-
-async function classify(path){
-    const image = readImage(path)
-    const input = imageToInput(image, NUMBER_OF_CHANNELS)
-
-    const  mn_model = await mobilenet.load();
-    const predictions = await mn_model.classify(input)
-    console.log(predictions)
-    return predictions
+  const mn_model = await mobilenet.load();
+  const predictions = await mn_model.classify(input);
+  console.log(predictions);
+  return predictions;
 }
 
-app.get("/predict", async function(req, res) {
- const query = req.query.query.trim();
- const api = supertest(req.app);
- const data = await api.get("/api/search?query="+query);
- var photo = JSON.parse(data.text).photos.photo[0]
- var url = "https://live.staticflickr.com/" +
-                 photo.server +
-                 "/" +
-                 photo.id +
-                 "_" +
-                 photo.secret +
-                 "_w.jpg";
+app.get("/predict", async function (req, res) {
+  const query = req.query.query.trim();
+  const api = supertest(req.app);
+  const data = await api.get("/api/search?query=" + query);
+  var photo = JSON.parse(data.text).photos.photo[0];
+  var url =
+    "https://live.staticflickr.com/" +
+    photo.server +
+    "/" +
+    photo.id +
+    "_" +
+    photo.secret +
+    "_w.jpg";
 
-request.get(url, async function (error, response, body) {
+  request.get(url, async function (error, response, body) {
     if (!error && response.statusCode == 200) {
-        var base64Data = Buffer.from(body).toString('base64');
-        const path = '/tmp/'+Date.now()
-        fs.writeFileSync(path, base64Data,  {encoding: 'base64'});
-        const result = await classify(path)
-        res.json({result: result})
+      var base64Data = Buffer.from(body).toString("base64");
+      const path = "/tmp/" + Date.now();
+      fs.writeFileSync(path, base64Data, { encoding: "base64" });
+      const result = await classify(path);
+      res.json({ result: result });
     }
-});
-
+  });
 });
 
 app.get("/api", (req, res) => {
@@ -235,4 +232,11 @@ app.get("/api/store", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server listening on ${PORT}`);
+});
+
+const root = path.join(__dirname, "client");
+app.use(express.static(root));
+
+app.get("*", (req, res) => {
+  res.sendFile("index.html", { root });
 });

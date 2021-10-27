@@ -16,6 +16,7 @@ export function ImageSearchDetector(props) {
   const [imageComponent, setImageComponent] = useState();
   const [predictions, setPredictions] = useState();
   const [modelLoading, setModelLoading] = useState(false);
+  const [mobilePredictions, setMobilePredictions] = useState();
 
   const imageRef = useRef();
 
@@ -51,11 +52,11 @@ export function ImageSearchDetector(props) {
   const getPredictions = async () => {
     const imageComp = document.getElementById("imageDisplayed");
 
-    // const api_url = "/getPrediction";
-    // fetch(api_url, {
-    //   method: "POST",
-    //   body: imageComp,
-    // }).then((res) => console.log(res));
+    const api_url = "/predict?query=" + searchInput;
+    console.log(api_url);
+    fetch(api_url)
+      .then((res) => res.json())
+      .then((res) => setMobilePredictions(res.result));
 
     const predictions = await model.detect(imageComp);
     setPredictions(predictions);
@@ -206,6 +207,21 @@ export function ImageSearchDetector(props) {
                             <TargetBox props={data} />
                           </div>
                         ))}
+                        <h1>mobilePredictions </h1>
+                        {mobilePredictions ? (
+                          <div>
+                            {mobilePredictions.map((data, key) => (
+                              <div className={key}>
+                                <h2> class: {data.className} </h2>
+                                <h3> score: {data.probability}</h3>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div>
+                            <h3>loading more predictions from server...</h3>
+                          </div>
+                        )}
                       </div>
                     ) : null}
                   </div>
