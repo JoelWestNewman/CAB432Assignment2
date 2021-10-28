@@ -77,28 +77,93 @@ async function classify(path) {
 }
 
 app.get("/predict", async function (req, res) {
-  const query = req.query.query.trim();
+  const APIKEY = "ffd6e3622d2137fe60a38874ba4a2464";
+   const query = req.query.query.trim();
+  const searchUrl = `https://api.flickr.com/services/rest/?&method=flickr.photos.search&api_key=ffd6e3622d2137fe60a38874ba4a2464&tags=${query}&per-page=5&format=json&media=photos&nojsoncallback=1`;
+  const redisKey = `tensor:${query}`;
+  const s3Key = `tensor-${query}`;
+  const params = { Bucket: bucketName, Key: s3Key };
+
   const api = supertest(req.app);
   const data = await api.get("/api/search?query=" + query);
-  var photo = JSON.parse(data.text).photos.photo[0];
-  var url =
-    "https://live.staticflickr.com/" +
-    photo.server +
-    "/" +
-    photo.id +
-    "_" +
-    photo.secret +
-    "_w.jpg";
 
-  request.get(url, async function (error, response, body) {
-    if (!error && response.statusCode == 200) {
-      var base64Data = Buffer.from(body).toString("base64");
-      const path = "/tmp/" + Date.now();
-      fs.writeFileSync(path, base64Data, { encoding: "base64" });
-      const result = await classify(path);
-      res.json({ result: result });
-    }
-  });
+  // Try the cache
+    return redisClient.get(redisKey, (err, result) => {
+      if (result) {
+        // Serve from Cache
+              console.log("from redis");
+              const resultJSON = JSON.parse(result);
+              resultJSON.source = "Redis Cache";
+              return res.status(200).json({ source: "Redis Cache", ...resultJSON });
+      } else {
+                   //Check if in s3
+                   return new AWS.S3({ apiVersion: "2006-03-01" }).getObject(
+                     params,
+                     (err, results3) => {
+                       if (results3) {
+                         // Serve from S3
+                         console.log("from s3");
+                         const resultsJSON = JSON.parse(results3.Body);
+                         var redisResult = resultsJSON.parse;
+                         redisClient.setex(
+                           redisKey,
+                           3600,
+                           JSON.stringify({ source: "Redis Cache", ...resultsJSON })
+                         );
+                         return res.status(200).json(resultsJSON);
+                       } else {
+                            var photo = JSON.parse(data.text).photos.photo[0];
+                            var url =
+                           "https://live.staticflickr.com/" +
+                           photo.server +
+                           "/" +
+                           photo.id +
+                           "_" +
+                           photo.secret +
+                           "_w.jpg";
+
+                         request.get(url, async function (error, response, body2) {
+                           if (!error && response.statusCode == 200) {
+                             var base64Data = Buffer.from(body2).toString("base64");
+                             const path = "/tmp/" + Date.now();
+                             fs.writeFileSync(path, base64Data, { encoding: "base64" });
+                             const result = await classify(path);
+
+                const responseJSON = result;
+                redisClient.setex(
+                  redisKey,
+                  3600,
+                  JSON.stringify({ source: "Redis Cache", ...responseJSON })
+                );
+                const body = JSON.stringify({
+                  source: "S3 Bucket",
+                  ...responseJSON,
+                });
+                const objectParams = {
+                  Bucket: bucketName,
+                  Key: s3Key,
+                  Body: body,
+                };
+                const uploadPromise = new AWS.S3({ apiVersion: "2006-03-01" })
+                  .putObject(objectParams)
+                  .promise();
+                uploadPromise.then(function (data) {
+                  console.log(
+                    "Successfully uploaded data to " + bucketName + "/" + s3Key
+                  );
+                  console.log("Successfully uploaded data to redis Cache");
+                });
+                return res
+                  .status(200)
+                  .json({ source: "Tensorflow", ...responseJSON });
+                           }
+                         });
+                       }
+                     }
+                   );
+                 }
+    });
+
 });
 
 app.get("/api", (req, res) => {
