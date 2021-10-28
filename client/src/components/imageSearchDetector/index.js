@@ -16,7 +16,7 @@ export function ImageSearchDetector(props) {
   const [imageComponent, setImageComponent] = useState();
   const [predictions, setPredictions] = useState();
   const [modelLoading, setModelLoading] = useState(false);
-  const [mobilePredictions, setMobilePredictions] = useState();
+  const [mobilePredictions, setMobilePredictions] = useState([]);
   const [clientSidePredictions, setClientSidePredictions] = useState(true);
 
   const imageRef = useRef();
@@ -42,11 +42,6 @@ export function ImageSearchDetector(props) {
   async function loadModel() {
     setModelLoading(true);
     const model = await cocoSsd.load();
-
-    //const api_url = "/api/startModel";
-
-    //fetch(api_url).then((res) => setModel(res));
-
     setModel(model);
     console.log("set loaded Model");
     setModelLoading(false);
@@ -56,10 +51,14 @@ export function ImageSearchDetector(props) {
     const imageComp = document.getElementById("imageDisplayed");
 
     const api_url = "/predict?query=" + searchInput;
-    console.log(api_url);
     fetch(api_url)
       .then((res) => res.json())
-      .then((res) => setMobilePredictions(res.result));
+      .then((res) => {
+        const appended = res;
+        delete appended["source"];
+        console.log(Object.values(appended));
+        setMobilePredictions(Object.values(appended));
+      });
 
     const predictions = await model.detect(imageComp);
     setPredictions(predictions);
