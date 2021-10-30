@@ -299,9 +299,12 @@ app.listen(PORT, () => {
   console.log(`Server listening on ${PORT}`);
 });
 
-const root = path.join(__dirname, "../client");
-app.use(express.static(root));
+//const root = path.join(__dirname, "../client/src");
+//app.use(express.static(root));
+
+app.use(express.static(path.join(__dirname, "..", "/client/build")));
+app.use(express.static("public"));
 
 app.get("*", (req, res) => {
-  res.sendFile("index.html", { root });
+  res.sendFile(path.join(__dirname, "../client/build", "index.html"));
 });

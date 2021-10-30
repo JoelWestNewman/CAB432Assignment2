@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "startserver": "(cd ../client && npm run build) && (cd ../server && npm start)"
+
   },
   "keywords": [],
   "author": "",
