@@ -18,6 +18,8 @@ export function ImageSearchDetector(props) {
   const [modelLoading, setModelLoading] = useState(false);
   const [mobilePredictions, setMobilePredictions] = useState([]);
   const [clientSidePredictions, setClientSidePredictions] = useState(true);
+  const [noImagesFound, setNoImagesFound] = useState(false);
+  const [imageInput, setImageInput] = useState();
 
   const imageRef = useRef();
 
@@ -50,7 +52,7 @@ export function ImageSearchDetector(props) {
   const getPredictions = async () => {
     const imageComp = document.getElementById("imageDisplayed");
 
-    const api_url = "/predict?query=" + searchInput;
+    const api_url = "/predict?query=" + imageInput;
     fetch(api_url)
       .then((res) => res.json())
       .then((res) => {
@@ -112,10 +114,19 @@ export function ImageSearchDetector(props) {
 
   const getImages = async () => {
     const api_url = "/api/search?query=" + searchInput;
+    setImageInput(searchInput);
 
     fetch(api_url)
       .then((res) => res.json())
-      .then((res) => setImages(res.photos.photo));
+      .then((res) => {
+        console.log(res);
+        if (res.photos.pages === 0) {
+          setNoImagesFound(true);
+        } else {
+          setImages(res.photos.photo);
+          setNoImagesFound(false);
+        }
+      });
   };
 
   useEffect(() => {
@@ -162,14 +173,10 @@ export function ImageSearchDetector(props) {
           <Button variant="contained" onClick={getImages}>
             Get Images
           </Button>
-          <p> or provide direct link: </p>
-          <TextField
-            id="outlined-basic"
-            label="Provide Direct Link To Image"
-            variant="outlined"
-            onChange={(event) => setImageUrl(event.target.value)}
-          />
           <br />
+          {noImagesFound ? (
+            <h2>No images found for that query. Please enter another one</h2>
+          ) : null}
           {images || imageUrl ? (
             <div>
               <br />

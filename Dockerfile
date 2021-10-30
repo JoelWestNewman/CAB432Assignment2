@@ -27,4 +27,4 @@ ENV PORT=8000
 EXPOSE 8000
 
 #start the server
-CMD ["node", "index.js"]
+CMD ["node", "server/index.js"]
